@@ -4,17 +4,29 @@
 #include "ofxOsc.h"
 #include "ofxHttpUtils.h"
 #include "ofxJSON.h"
-#include "ofxTrueTypeFontUC.h"
+#include "ofxTrueTypeFontUL2.h"
+#include "FrameTimer.h"
 
-#define MAX_VEL 10.0
+#define DRAW_DEBUG
+
+#define MAX_VEL 5.0
+#define MIN_ACC 0.05
 #define PORT 8080
 #define TRAJECT_RAD 1
 #define ACC_SCALE 10.0
-#define TEXT_SIZE 60
+
+#define MAX_CHAR_INTERVAL 10000
+#define MIN_CHAR_INTERVAL 3000
+
 
 class ofApp : public ofBaseApp{
 
+        void draw33Grid(float wid_);
+    
 	public:
+    
+        float TEXT_SIZE;
+    
 		void setup();
 		void update();
 		void draw();
@@ -26,10 +38,12 @@ class ofApp : public ofBaseApp{
         void newResponse(ofxHttpResponse & response);
         void sendTrajectory();
     
-        list<ofVec2f> _pos;
+        list<list<ofVec2f>> _trajectory;
         ofVec3f _acc;
         ofVec3f _vel;
         ofVec3f _rot;
+        ofVec3f _pos;
+        bool _paused;
     
         ofxOscReceiver    _osc_receiver;
     
@@ -37,5 +51,15 @@ class ofApp : public ofBaseApp{
     
         list<string> _text;
     
-        ofxTrueTypeFontUC _font;
+        ofxTrueTypeFontUL2 _font;
+    
+        FrameTimer _timer_char;
+        void startNewChar();
+    
+    
+        float _dmil,_last_mil;
+    
+        bool _playing;
+        void startGame();
+        void endGame();
 };

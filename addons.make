@@ -1,4 +1,4 @@
 ofxHttpUtils
 ofxJSON
 ofxOsc
-ofxTrueTypeFontUC
+ofxTrueTypeFontUL2
