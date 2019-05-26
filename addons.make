@@ -2,3 +2,4 @@ ofxHttpUtils
 ofxJSON
 ofxOsc
 ofxTrueTypeFontUL2
+ofxTwistedRibbon

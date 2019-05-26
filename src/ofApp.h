@@ -21,10 +21,16 @@
 
 class ofApp : public ofBaseApp{
 
-        void draw33Grid(float wid_);
+        void draw33Grid(float wid_,float alpha_);
+        ofVec2f getTextPos(int idx_);
+        bool isLegalChar(string str_);
     
 	public:
     
+        float REGION_WIDTH;
+        float REGION_HEIGHT;
+    
+        float TEXT_POS;
         float TEXT_SIZE;
     
 		void setup();
@@ -38,7 +44,7 @@ class ofApp : public ofBaseApp{
         void newResponse(ofxHttpResponse & response);
         void sendTrajectory();
     
-        list<list<ofVec2f>> _trajectory;
+        list<ofPolyline> _trajectory;
         ofVec3f _acc;
         ofVec3f _vel;
         ofVec3f _rot;
@@ -56,10 +62,24 @@ class ofApp : public ofBaseApp{
         FrameTimer _timer_char;
         void startNewChar();
     
+        FrameTimer _timer_transition;
+        FrameTimer _timer_emerge;
+        ofVec3f _trans_dest_pos;
+        float _trans_dest_scale;
+    
+        void startTextTransition();
+        void onTransitionEnd(int& i);
+    
     
         float _dmil,_last_mil;
     
         bool _playing;
         void startGame();
         void endGame();
+    
+        bool _processing;
+        ofVec3f _transition_dest;
+    
+        ofEasyCam _camera;
+    
 };

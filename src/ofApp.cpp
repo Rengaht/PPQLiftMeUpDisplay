@@ -2,16 +2,31 @@
 
 //--------------------------------------------------------------
 void ofApp::setup(){
+    
+    ofHideCursor();
+    
     std::cout << "listening for osc messages on port " << PORT << "\n";
     _osc_receiver.setup( PORT );
     
     ofAddListener(_http_utils.newResponseEvent,this,&ofApp::newResponse);
     _http_utils.start();
     
-    TEXT_SIZE=ofGetHeight()*.8/4/2;
-    _font.loadFont("NotoSerifCJKtc-Medium.otf", TEXT_SIZE);
+    REGION_WIDTH=ofGetHeight();
+    REGION_HEIGHT=ofGetHeight();
+    
+    TEXT_SIZE=ofGetHeight()*.8/4;
+    TEXT_POS=REGION_WIDTH+(ofGetWidth()-REGION_WIDTH)/2;
+    _font.loadFont("HuaKangWeiBeiTi-1.ttc", TEXT_SIZE*.75);
     
     _dmil=ofGetElapsedTimeMillis();
+    _timer_emerge=FrameTimer(2000,1000);
+    _timer_transition=FrameTimer(1000);
+    
+    ofAddListener(_timer_transition.finish_event,this,&ofApp::onTransitionEnd);
+    
+    
+    
+    
     startGame();
 }
 
@@ -22,18 +37,23 @@ void ofApp::update(){
     _last_mil+=_dmil;
     if(!_paused) _timer_char.update(_dmil);
     
+    _timer_emerge.update(_dmil);
+    _timer_transition.update(_dmil);
+    
     if(_playing && _timer_char.val()==1){
         sendTrajectory();
         _timer_char.reset();
-//        startNewChar();
     }
     
     
     //if(!_osc_receiver.hasWaitingMessages()) _paused=true;
     while(_osc_receiver.hasWaitingMessages()){
+        
         // get the next message
         ofxOscMessage m;
         _osc_receiver.getNextMessage(&m);
+        
+        if(_processing) continue;
         
         // check for mouse moved message
         if(m.getAddress()=="/acc"){
@@ -49,7 +69,7 @@ void ofApp::update(){
                 
                 if(!_paused){
                     _paused=true;
-                    ofLog()<<"... pause ...";
+//                    ofLog()<<"... pause ...";
                 }
             }else{
                 
@@ -61,23 +81,27 @@ void ofApp::update(){
                 _vel+=_acc;
                 
                 if(_paused){
-                    ofLog()<<"... resume ...";
+//                    ofLog()<<"... resume ...";
                     _paused=false;
                 }
             }
             
             ofVec3f tmp_pos=_pos+_vel;
             
-            if(tmp_pos.x>ofGetWidth()/2){ _acc.x=0; _vel.x=0;}
-            if(tmp_pos.x<-ofGetWidth()/2){ _acc.x=0; _vel.x=0;}
-            if(tmp_pos.y>ofGetHeight()/2){ _acc.y=0; _vel.y=0;}
-            if(tmp_pos.y<-ofGetHeight()/2){ _acc.y=0; _vel.y=0;}
+            if(tmp_pos.x>REGION_WIDTH/2){ _acc.x=0; _vel.x=0;}
+            if(tmp_pos.x<-REGION_WIDTH/2){ _acc.x=0; _vel.x=0;}
+            if(tmp_pos.y>REGION_HEIGHT/2){ _acc.y=0; _vel.y=0;}
+            if(tmp_pos.y<-REGION_HEIGHT/2){ _acc.y=0; _vel.y=0;}
+            if(tmp_pos.z>REGION_WIDTH){ _acc.z=0; _vel.z=0;}
+            if(tmp_pos.z<-REGION_WIDTH){ _acc.z=0; _vel.z=0;}
             
-            tmp_pos.x=ofClamp(tmp_pos.x,-ofGetWidth()/2,ofGetWidth()/2);
-            tmp_pos.y=ofClamp(tmp_pos.y,-ofGetHeight()/2,ofGetHeight()/2);
             
-            (_trajectory.back()).push_back(tmp_pos);
+            tmp_pos.x=ofClamp(tmp_pos.x,-REGION_WIDTH/2,REGION_WIDTH/2);
+            tmp_pos.y=ofClamp(tmp_pos.y,-REGION_HEIGHT/2,REGION_HEIGHT/2);
+            tmp_pos.z=ofClamp(tmp_pos.z,-REGION_WIDTH/2,REGION_WIDTH/2);
             
+            (_trajectory.back()).addVertex(ofVec3f(tmp_pos.x,tmp_pos.y,tmp_pos.z));
+//            ofLog()<<"add pos: "<<tmp_pos;
             _pos=tmp_pos;
             
         }
@@ -86,46 +110,81 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
+    
+    
     ofBackground(255);
+    ofDisableDepthTest();
     
-    ofPushMatrix();
-    ofTranslate(ofGetWidth()/2, ofGetHeight()/2);
-    
-    
-    ofSetColor(255,0,0);
-    ofNoFill();
-    for(auto& t:_trajectory){
-        if(t.size()>0){
-            ofBeginShape();
-                for(auto& p:t)  ofVertex(p.x,p.y);
-            ofEndShape();
-        }
-    }
-    
+    ofSetColor(250);
+    ofDrawRectangle(0,0, REGION_WIDTH, REGION_HEIGHT);
 
+//    _camera.begin();
+
+    ofPushMatrix();
+    ofTranslate(REGION_WIDTH/2, REGION_HEIGHT/2);
+    
+    ofPushStyle();
+    ofNoFill();
+    int m=_trajectory.size();
+
+    ofPushMatrix();
+    float t=_timer_transition.val();
+    
+   
+
+    ofVec3f pos_(ofLerp(0,_trans_dest_pos.x,t),ofLerp(0,_trans_dest_pos.y,t),ofLerp(0,_trans_dest_pos.z,t));
+    float scl_=ofMap(t,0,1,1,_trans_dest_scale);
+    
+    
+    ofTranslate(pos_);
+    ofScale(scl_,scl_);;
+    ofSetColor(255,0,0,255*(1.0-t));
+    _trajectory.back().draw();
+    
+    
+//    ofSetColor(0,0,255);
+//    _tmp_poly.draw();
+    
+    ofPopMatrix();
+
+    ofPopStyle();
     ofPopMatrix();
     
+//    _camera.end();
+
+    
+    /* draw text */
+    for(int i=0;i<4;++i){
+        ofPushMatrix();
+        ofTranslate(getTextPos(i));
+        draw33Grid(TEXT_SIZE,1);
+        ofPopMatrix();
+    }
+    
     ofPushMatrix();
-    ofTranslate(ofGetWidth()/2-TEXT_SIZE/2,ofGetHeight()/2-TEXT_SIZE*2*2);
-    ofSetColor(120);
     int i=0;
     for(auto&t :_text){
        
         ofPushMatrix();
-        ofTranslate(-TEXT_SIZE/2,TEXT_SIZE*2*i);
-        ofPushStyle();
-        ofNoFill();
-            draw33Grid(TEXT_SIZE*2);
-        ofPopStyle();
+        ofTranslate(getTextPos(i)); //center
         
-        auto r=_font.getStringBoundingBox(t, 0, 0);
-        _font.drawString(t,TEXT_SIZE-r.width/2,TEXT_SIZE+TEXT_SIZE/1.9);
+        ofPushStyle();
+        if(i==_text.size()-1){
+            ofSetColor(120,255*_timer_emerge.valEaseOut());
+        }else ofSetColor(120);
+        
+        
+        _font.drawString(t,-TEXT_SIZE/2,TEXT_SIZE/4);
         
         ofPopMatrix();
+        ofPopStyle();
         
         i++;
     }
     ofPopMatrix();
+    
+    
+ 
 
 #ifdef DRAW_DEBUG
     if(_playing){
@@ -190,10 +249,7 @@ void ofApp::newResponse(ofxHttpResponse & response){
         bool found_=false;
         for(int i=0;i<len;++i){
             string tmp_=t[i].asString();
-//            if(tmp_.size()>1) break;
-            auto x=ofToHex(tmp_);
-            ofLog()<<tmp_<<" hex= "<<ofToHex(tmp_);
-            if(x>="e40000"){
+            if(isLegalChar(tmp_)){
                 
                 bool repeat_=false;
                 for(auto& ss:_text){
@@ -215,10 +271,12 @@ void ofApp::newResponse(ofxHttpResponse & response){
             float t=ofRandom(MIN_CHAR_INTERVAL,MAX_CHAR_INTERVAL);
             _timer_char=FrameTimer(t);
             _timer_char.restart();
+            _processing=false;
         }else{
             
-            if(_text.size()>=4) endGame();
-            else startNewChar();
+            //_timer_emerge.restart();
+            startTextTransition();
+            
         }
     }else{
         ofLog()<<"!!! cant get a word !!!";
@@ -226,10 +284,11 @@ void ofApp::newResponse(ofxHttpResponse & response){
         float t=ofRandom(MIN_CHAR_INTERVAL,MAX_CHAR_INTERVAL);
         _timer_char=FrameTimer(t);
         _timer_char.restart();
+        _processing=false;
     }
     
     ofLog()<<s;
-    
+   
    
 }
 
@@ -244,9 +303,10 @@ void ofApp::sendTrajectory(){
     ofxJSONElement req_;
     ofxJSONElement trace_;
     int i=0;
-    for(auto&p: _trajectory.back()){
-        trace_[0][i]=p.x+ofGetWidth()/2;
-        trace_[1][i]=p.y+ofGetHeight()/2;
+    auto verts= _trajectory.back().getVertices();
+    for(auto&p:verts){
+        trace_[0][i]=p.x+REGION_WIDTH/2;
+        trace_[1][i]=p.y+REGION_HEIGHT/2;
         i++;
     }
     
@@ -261,14 +321,49 @@ void ofApp::sendTrajectory(){
     form.data=json_.getRawString();
     
     _http_utils.addForm(form);
+    _processing=true;
 }
 
+void ofApp::startTextTransition(){
+    
+    float tdepth_=0;
+    auto verts=_trajectory.back().getVertices();
+    for(auto p:verts) tdepth_+=p.z;
+    tdepth_/=(float)verts.size();
+    
+    _trans_dest_scale=0;//TEXT_SIZE/REGION_WIDTH;
+    
+    auto rec=_trajectory.back().getBoundingBox();
+    _trans_dest_pos=ofVec3f(-REGION_WIDTH/2,-REGION_HEIGHT/2,0);
+    _trans_dest_pos+=getTextPos(_text.size()-1);
+    _trans_dest_pos.x-=rec.getCenter().x*_trans_dest_scale;
+    _trans_dest_pos.y-=rec.getCenter().x*_trans_dest_scale;
+    _trans_dest_pos.z=-tdepth_;
+    
+    
+    _timer_emerge.restart();
+    _timer_transition.restart();
+    
+}
+
+void ofApp::onTransitionEnd(int& e){
+    
+    _processing=false;
+    
+    if(_text.size()>=4) endGame();
+    else startNewChar();
+}
 void ofApp::startNewChar(){
     
-    _trajectory.push_back(list<ofVec2f>());
+    _timer_transition.reset();
+    
+    _trajectory.push_back(ofPolyline());
     _pos*=0;
     _vel*=0;
     _acc*=0;
+    
+    _trans_dest_pos=ofVec2f(0);
+    _trans_dest_scale=1;
     
     float t=ofRandom(MIN_CHAR_INTERVAL,MAX_CHAR_INTERVAL);
     _timer_char=FrameTimer(t);
@@ -284,9 +379,11 @@ void ofApp::startGame(){
     ofLog()<<"------ Game Start ------ ";
     _playing=true;
     _paused=true;
+    _processing=false;
     
     reset();
     startNewChar();
+    
 }
 
 void ofApp::endGame(){
@@ -298,20 +395,22 @@ void ofApp::endGame(){
     
 }
 
-void ofApp::draw33Grid(float wid_){
+void ofApp::draw33Grid(float wid_,float alpha_){
     
+    ofPushMatrix();
+    ofTranslate(-wid_/2,-wid_/2);
     
     ofPushStyle();
-    
-    ofSetLineWidth(3);
-        ofDrawRectangle(0,0,wid_,wid_);
-    ofPushStyle();
-    ofSetColor(255,120);
+    ofSetColor(255,120*alpha_);
     ofFill();
-        ofDrawRectangle(0,0,wid_,wid_);
+    ofDrawRectangle(0,0,wid_,wid_);
     ofPopStyle();
     
-    //ofNoFill();
+    ofPushStyle();
+    ofSetColor(120,255*alpha_);
+    ofSetLineWidth(3);
+    ofNoFill();
+        ofDrawRectangle(0,0,wid_,wid_);
     
     ofSetLineWidth(1);
     for(int x=0;x<3;++x)
@@ -320,4 +419,46 @@ void ofApp::draw33Grid(float wid_){
     
    
     ofPopStyle();
+    
+    ofPopMatrix();
+}
+ofVec2f ofApp::getTextPos(int idx_){ // return center
+    return ofVec2f(TEXT_POS,ofGetHeight()/2-TEXT_SIZE*2+TEXT_SIZE*idx_+TEXT_SIZE/2);
+}
+
+bool ofApp::isLegalChar(string str){
+//    auto x=ofToHex(tmp_);
+//    ofLog()<<tmp_<<" hex= "<<ofToHex(tmp_);
+//    if(x>="e40000") return true;
+//    return false;
+    
+    unsigned char utf[4]={0};
+    unsigned char unicode[3]={0};
+    bool res=false;
+    for(int i=0; i<str.length();i++){
+        if((str[i] & 0x80)==0){
+            res = false;
+        }else{
+            utf[0] = str[i];
+            utf[1] = str[i + 1];
+            utf[2] = str[i + 2];
+            i++;
+            i++;
+            unicode[0] = ((utf[0] & 0x0F) << 4) | ((utf[1] & 0x3C) >>2);
+            unicode[1] = ((utf[1] & 0x03) << 6) | (utf[2] & 0x3F);
+            ofLog()<<str<<" "<<ofToHex(unicode[0])<<" "<<ofToHex(unicode[1]);
+            if(unicode[0] >= 0x4e && unicode[0] <= 0x9f){
+                if(unicode[0] == 0x9f && unicode[1] >0xa5) res = false;
+                else{
+//                    auto r=_font.getStringBoundingBox(str, 0, 0);
+//                    if(r.getWidth()==0)
+//                        res=false;
+//                    else
+                        res=true;
+                }
+            }else res = false;
+        }
+    }
+    return res;
+    
 }

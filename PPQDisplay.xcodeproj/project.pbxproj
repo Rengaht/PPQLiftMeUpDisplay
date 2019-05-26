@@ -9,6 +9,70 @@
 		<string>46</string>
 		<key>objects</key>
 		<dict>
+			<key>92288960AB502F1CACECA160</key>
+			<dict>
+				<key>explicitFileType</key>
+				<string>sourcecode.c.h</string>
+				<key>fileEncoding</key>
+				<string>30</string>
+				<key>isa</key>
+				<string>PBXFileReference</string>
+				<key>name</key>
+				<string>ofxTwistedRibbon.h</string>
+				<key>path</key>
+				<string>../../../addons/ofxTwistedRibbon/src/ofxTwistedRibbon.h</string>
+				<key>sourceTree</key>
+				<string>SOURCE_ROOT</string>
+			</dict>
+			<key>1B90309B20DA9B5B3B97A8B0</key>
+			<dict>
+				<key>children</key>
+				<array>
+					<string>88201CDD86313DAF133EDDD1</string>
+					<string>92288960AB502F1CACECA160</string>
+				</array>
+				<key>isa</key>
+				<string>PBXGroup</string>
+				<key>name</key>
+				<string>src</string>
+				<key>sourceTree</key>
+				<string>&lt;group&gt;</string>
+			</dict>
+			<key>0F36EE4206A06D1BF710EFEF</key>
+			<dict>
+				<key>children</key>
+				<array>
+					<string>1B90309B20DA9B5B3B97A8B0</string>
+				</array>
+				<key>isa</key>
+				<string>PBXGroup</string>
+				<key>name</key>
+				<string>ofxTwistedRibbon</string>
+				<key>sourceTree</key>
+				<string>&lt;group&gt;</string>
+			</dict>
+			<key>4A9A21E8FF2F9966A3C03A3A</key>
+			<dict>
+				<key>fileRef</key>
+				<string>88201CDD86313DAF133EDDD1</string>
+				<key>isa</key>
+				<string>PBXBuildFile</string>
+			</dict>
+			<key>88201CDD86313DAF133EDDD1</key>
+			<dict>
+				<key>explicitFileType</key>
+				<string>sourcecode.cpp.cpp</string>
+				<key>fileEncoding</key>
+				<string>30</string>
+				<key>isa</key>
+				<string>PBXFileReference</string>
+				<key>name</key>
+				<string>ofxTwistedRibbon.cpp</string>
+				<key>path</key>
+				<string>../../../addons/ofxTwistedRibbon/src/ofxTwistedRibbon.cpp</string>
+				<key>sourceTree</key>
+				<string>SOURCE_ROOT</string>
+			</dict>
 			<key>A32C1FDA08871DDF7D230A49</key>
 			<dict>
 				<key>explicitFileType</key>
@@ -1397,6 +1461,7 @@
 					<string>2865DAEF86B1907A704CA70B</string>
 					<string>E6053AB7FEC63D5F83825B88</string>
 					<string>08F0DBE627E14F259267379F</string>
+					<string>0F36EE4206A06D1BF710EFEF</string>
 				</array>
 				<key>isa</key>
 				<string>PBXGroup</string>
@@ -1577,6 +1642,7 @@
 						<string>../../../addons/ofxTrueTypeFontUL2/libs/harfbuzz/lib</string>
 						<string>../../../addons/ofxTrueTypeFontUL2/libs/harfbuzz/lib/osx</string>
 						<string>../../../addons/ofxTrueTypeFontUL2/src</string>
+						<string>../../../addons/ofxTwistedRibbon/src</string>
 					</array>
 					<key>CONFIGURATION_BUILD_DIR</key>
 					<string>$(SRCROOT)/bin/</string>
@@ -1661,6 +1727,7 @@
 						<string>../../../addons/ofxTrueTypeFontUL2/libs/harfbuzz/lib</string>
 						<string>../../../addons/ofxTrueTypeFontUL2/libs/harfbuzz/lib/osx</string>
 						<string>../../../addons/ofxTrueTypeFontUL2/src</string>
+						<string>../../../addons/ofxTwistedRibbon/src</string>
 					</array>
 					<key>CONFIGURATION_BUILD_DIR</key>
 					<string>$(SRCROOT)/bin/</string>
@@ -1733,6 +1800,7 @@
 					<string>510CAFE035E576A4E1502D52</string>
 					<string>ADE367465D2A8EBAD4C7A8D9</string>
 					<string>F8EE25F765782ABAC54C8E81</string>
+					<string>4A9A21E8FF2F9966A3C03A3A</string>
 				</array>
 				<key>isa</key>
 				<string>PBXSourcesBuildPhase</string>
@@ -1843,6 +1911,7 @@
 						<string>../../../addons/ofxTrueTypeFontUL2/libs/harfbuzz/lib</string>
 						<string>../../../addons/ofxTrueTypeFontUL2/libs/harfbuzz/lib/osx</string>
 						<string>../../../addons/ofxTrueTypeFontUL2/src</string>
+						<string>../../../addons/ofxTwistedRibbon/src</string>
 					</array>
 					<key>COMBINE_HIDPI_IMAGES</key>
 					<string>YES</string>
@@ -1917,6 +1986,7 @@
 						<string>../../../addons/ofxTrueTypeFontUL2/libs/harfbuzz/lib</string>
 						<string>../../../addons/ofxTrueTypeFontUL2/libs/harfbuzz/lib/osx</string>
 						<string>../../../addons/ofxTrueTypeFontUL2/src</string>
+						<string>../../../addons/ofxTwistedRibbon/src</string>
 					</array>
 					<key>COMBINE_HIDPI_IMAGES</key>
 					<string>YES</string>
