@@ -24,8 +24,11 @@ void ofApp::setup(){
     
     ofAddListener(_timer_transition.finish_event,this,&ofApp::onTransitionEnd);
     
+    _ribbon=new ofxTwistedRibbon();
+    _ribbon->thickness=5;
     
-    
+    _camera.setNearClip(-ofGetWidth());
+    _camera.setFarClip(ofGetWidth());
     
     startGame();
 }
@@ -92,7 +95,7 @@ void ofApp::update(){
             if(tmp_pos.x<-REGION_WIDTH/2){ _acc.x=0; _vel.x=0;}
             if(tmp_pos.y>REGION_HEIGHT/2){ _acc.y=0; _vel.y=0;}
             if(tmp_pos.y<-REGION_HEIGHT/2){ _acc.y=0; _vel.y=0;}
-            if(tmp_pos.z>REGION_WIDTH){ _acc.z=0; _vel.z=0;}
+            if(tmp_pos.z>0){ _acc.z=0; _vel.z=0;}
             if(tmp_pos.z<-REGION_WIDTH){ _acc.z=0; _vel.z=0;}
             
             
@@ -101,8 +104,13 @@ void ofApp::update(){
             tmp_pos.z=ofClamp(tmp_pos.z,-REGION_WIDTH/2,REGION_WIDTH/2);
             
             (_trajectory.back()).addVertex(ofVec3f(tmp_pos.x,tmp_pos.y,tmp_pos.z));
-//            ofLog()<<"add pos: "<<tmp_pos;
+            ofLog()<<"add pos: "<<tmp_pos;
             _pos=tmp_pos;
+            
+            ofColor color(255,0,0);
+//            int hue = int(ofGetElapsedTimef() * 10) % 255;
+//            color.setHsb(hue, 120, 220);
+            _ribbon->update(_pos,color);
             
         }
     }
@@ -113,7 +121,6 @@ void ofApp::draw(){
     
     
     ofBackground(255);
-    ofDisableDepthTest();
     
     ofSetColor(250);
     ofDrawRectangle(0,0, REGION_WIDTH, REGION_HEIGHT);
@@ -139,18 +146,19 @@ void ofApp::draw(){
     ofTranslate(pos_);
     ofScale(scl_,scl_);;
     ofSetColor(255,0,0,255*(1.0-t));
-    _trajectory.back().draw();
-    
-    
-//    ofSetColor(0,0,255);
-//    _tmp_poly.draw();
+//    _trajectory.back().draw();
+    _ribbon->draw();
     
     ofPopMatrix();
 
     ofPopStyle();
     ofPopMatrix();
-    
+ 
 //    _camera.end();
+
+    
+    ofDisableDepthTest();
+    
 
     
     /* draw text */
@@ -172,8 +180,7 @@ void ofApp::draw(){
         if(i==_text.size()-1){
             ofSetColor(120,255*_timer_emerge.valEaseOut());
         }else ofSetColor(120);
-        
-        
+       
         _font.drawString(t,-TEXT_SIZE/2,TEXT_SIZE/4);
         
         ofPopMatrix();
@@ -333,6 +340,8 @@ void ofApp::startTextTransition(){
     
     _trans_dest_scale=0;//TEXT_SIZE/REGION_WIDTH;
     
+    //auto trec=_font.getStringBoundingBox(_text.back(),0,0);
+    
     auto rec=_trajectory.back().getBoundingBox();
     _trans_dest_pos=ofVec3f(-REGION_WIDTH/2,-REGION_HEIGHT/2,0);
     _trans_dest_pos+=getTextPos(_text.size()-1);
@@ -368,6 +377,10 @@ void ofApp::startNewChar(){
     float t=ofRandom(MIN_CHAR_INTERVAL,MAX_CHAR_INTERVAL);
     _timer_char=FrameTimer(t);
     _timer_char.restart();
+    
+    delete _ribbon;
+    _ribbon=new ofxTwistedRibbon();
+    _ribbon->thickness=5;
     
     ofLog()<<">>> next char t="<<t;
     
@@ -450,11 +463,13 @@ bool ofApp::isLegalChar(string str){
             if(unicode[0] >= 0x4e && unicode[0] <= 0x9f){
                 if(unicode[0] == 0x9f && unicode[1] >0xa5) res = false;
                 else{
-//                    auto r=_font.getStringBoundingBox(str, 0, 0);
-//                    if(r.getWidth()==0)
-//                        res=false;
-//                    else
-                        res=true;
+                    //TODO: if not in font!!!
+//                    auto r=_font.getStringBoundingBox(str,0,0);
+//                    if(r.width==0){
+//                        ofLog()<<"no char!";
+//                        return false;
+//                    }
+                    res=true;
                 }
             }else res = false;
         }

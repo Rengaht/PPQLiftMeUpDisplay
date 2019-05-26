@@ -5,6 +5,7 @@
 #include "ofxHttpUtils.h"
 #include "ofxJSON.h"
 #include "ofxTrueTypeFontUL2.h"
+#include "ofxTwistedRibbon.h"
 #include "FrameTimer.h"
 
 #define DRAW_DEBUG
@@ -81,5 +82,5 @@ class ofApp : public ofBaseApp{
         ofVec3f _transition_dest;
     
         ofEasyCam _camera;
-    
+        ofxTwistedRibbon *_ribbon;
 };
