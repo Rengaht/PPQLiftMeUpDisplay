@@ -19,8 +19,8 @@ void ofApp::setup(){
     _font.loadFont("HuaKangWeiBeiTi-1.ttc", TEXT_SIZE*.75);
     
     _dmil=ofGetElapsedTimeMillis();
-    _timer_emerge=FrameTimer(2000,1000);
-    _timer_transition=FrameTimer(1000);
+    _timer_emerge=FrameTimer(EMERGE_TIME,TRANSITION_TIME);
+    _timer_transition=FrameTimer(TRANSITION_TIME);
     
     ofAddListener(_timer_transition.finish_event,this,&ofApp::onTransitionEnd);
     
@@ -29,6 +29,11 @@ void ofApp::setup(){
     
     _camera.setNearClip(-ofGetWidth());
     _camera.setFarClip(ofGetWidth());
+    
+    _fbo_print.allocate(PRINT_WIDTH,PRINT_HEIGHT,GL_RGB);
+    _img_print.load("print.png");
+    _timer_print=FrameTimer(1000);
+    
     
     startGame();
 }
@@ -48,6 +53,23 @@ void ofApp::update(){
         _timer_char.reset();
     }
     
+    _timer_print.update(_dmil);
+    if(_timer_print.val()==1){
+        createPrinterImage();
+        _timer_print.reset();
+    }
+    
+    if(_new_word){
+        // check if in font
+        auto r=_font.getStringBoundingBox(_text.back(), 0, 0);
+        if(r.width==0){
+            _text.pop_back();
+            pendingChar();
+        }else{
+            startTextTransition();
+        }
+        _new_word=false;
+    }
     
     //if(!_osc_receiver.hasWaitingMessages()) _paused=true;
     while(_osc_receiver.hasWaitingMessages()){
@@ -104,10 +126,10 @@ void ofApp::update(){
             tmp_pos.z=ofClamp(tmp_pos.z,-REGION_WIDTH/2,REGION_WIDTH/2);
             
             (_trajectory.back()).addVertex(ofVec3f(tmp_pos.x,tmp_pos.y,tmp_pos.z));
-            ofLog()<<"add pos: "<<tmp_pos;
+//            ofLog()<<"add pos: "<<tmp_pos;
             _pos=tmp_pos;
             
-            ofColor color(255,0,0);
+            ofColor color(int(ofGetElapsedTimef() * 10) % 55+200,0,0);
 //            int hue = int(ofGetElapsedTimef() * 10) % 255;
 //            color.setHsb(hue, 120, 220);
             _ribbon->update(_pos,color);
@@ -199,8 +221,25 @@ void ofApp::draw(){
         ofSetColor(255,0,0,180);
         ofFill();
             ofDrawRectangle(0,ofGetHeight()-2,ofGetWidth()*_timer_char.val(),2);
+        
+
+        ofPushMatrix();
+        ofTranslate(ofGetWidth()-20, ofGetHeight()-20);
+            ofDrawCircle(0, 0, 5);
+        ofPopMatrix();
         ofPopStyle();
         
+    }else{
+        ofPushStyle();
+        ofSetColor(0,255,0,180);
+        ofFill();
+        
+        ofPushMatrix();
+        ofTranslate(ofGetWidth()-20, ofGetHeight()-20);
+            ofDrawCircle(0, 0, 5);
+        ofPopMatrix();
+        
+        ofPopStyle();
     }
     ofPushMatrix();
     ofTranslate(20, ofGetHeight()-20);
@@ -243,6 +282,9 @@ void ofApp::reset(){
     _pos=ofVec3f(0);
     
     _text.clear();
+    _new_word=false;
+    
+    _timer_print.reset();
 }
 
 
@@ -274,29 +316,28 @@ void ofApp::newResponse(ofxHttpResponse & response){
         
         if(!found_){
             ofLog()<<"!!! cant get a word !!!";
-            //TODO: add more time
-            float t=ofRandom(MIN_CHAR_INTERVAL,MAX_CHAR_INTERVAL);
-            _timer_char=FrameTimer(t);
-            _timer_char.restart();
-            _processing=false;
+            pendingChar();
         }else{
             
             //_timer_emerge.restart();
-            startTextTransition();
+            _new_word=true;
+            //startTextTransition();
             
         }
     }else{
         ofLog()<<"!!! cant get a word !!!";
-        //TODO: add more time
-        float t=ofRandom(MIN_CHAR_INTERVAL,MAX_CHAR_INTERVAL);
-        _timer_char=FrameTimer(t);
-        _timer_char.restart();
-        _processing=false;
+        pendingChar();
     }
     
     ofLog()<<s;
    
    
+}
+void ofApp::pendingChar(){
+    float t=ofRandom(MIN_CHAR_INTERVAL,MAX_CHAR_INTERVAL);
+    _timer_char=FrameTimer(t);
+    _timer_char.restart();
+    _processing=false;
 }
 
 void ofApp::sendTrajectory(){
@@ -340,8 +381,7 @@ void ofApp::startTextTransition(){
     
     _trans_dest_scale=0;//TEXT_SIZE/REGION_WIDTH;
     
-    //auto trec=_font.getStringBoundingBox(_text.back(),0,0);
-    
+   
     auto rec=_trajectory.back().getBoundingBox();
     _trans_dest_pos=ofVec3f(-REGION_WIDTH/2,-REGION_HEIGHT/2,0);
     _trans_dest_pos+=getTextPos(_text.size()-1);
@@ -405,7 +445,8 @@ void ofApp::endGame(){
     _playing=false;
     
     // TODO: print!
-    
+    _timer_print.restart();
+//    createPrinterImage();
 }
 
 void ofApp::draw33Grid(float wid_,float alpha_){
@@ -413,14 +454,14 @@ void ofApp::draw33Grid(float wid_,float alpha_){
     ofPushMatrix();
     ofTranslate(-wid_/2,-wid_/2);
     
-    ofPushStyle();
-    ofSetColor(255,120*alpha_);
-    ofFill();
-    ofDrawRectangle(0,0,wid_,wid_);
-    ofPopStyle();
+//    ofPushStyle();
+//    ofSetColor(255,120*alpha_);
+//    ofFill();
+//    ofDrawRectangle(0,0,wid_,wid_);
+//    ofPopStyle();
     
     ofPushStyle();
-    ofSetColor(120,255*alpha_);
+    ofSetColor(20,255*alpha_);
     ofSetLineWidth(3);
     ofNoFill();
         ofDrawRectangle(0,0,wid_,wid_);
@@ -445,6 +486,11 @@ bool ofApp::isLegalChar(string str){
 //    if(x>="e40000") return true;
 //    return false;
     
+    ofLog()<<"length of "<<str<<" = "<<str.length();
+    if(str.length()>3){
+        ofLog()<<"more than one word: "<<str;
+        return false;
+    }
     unsigned char utf[4]={0};
     unsigned char unicode[3]={0};
     bool res=false;
@@ -463,12 +509,6 @@ bool ofApp::isLegalChar(string str){
             if(unicode[0] >= 0x4e && unicode[0] <= 0x9f){
                 if(unicode[0] == 0x9f && unicode[1] >0xa5) res = false;
                 else{
-                    //TODO: if not in font!!!
-//                    auto r=_font.getStringBoundingBox(str,0,0);
-//                    if(r.width==0){
-//                        ofLog()<<"no char!";
-//                        return false;
-//                    }
                     res=true;
                 }
             }else res = false;
@@ -476,4 +516,49 @@ bool ofApp::isLegalChar(string str){
     }
     return res;
     
+}
+
+
+void ofApp::createPrinterImage(){
+    _fbo_print.begin();
+    ofClear(255);
+    _img_print.draw(0,0,PRINT_WIDTH,PRINT_HEIGHT);
+    
+        int i=0;
+        for(auto& t:_text){
+            ofPushMatrix();
+            ofTranslate(PRINT_WIDTH/2,PRINT_HEIGHT/2-PRINT_TEXT_SIZE*_text.size()/2.0+PRINT_TEXT_SIZE*(i+.5));
+            draw33Grid(PRINT_TEXT_SIZE,1);
+            
+            float sc_=(float)PRINT_TEXT_SIZE/TEXT_SIZE;
+            ofScale(sc_,sc_);
+            ofPushStyle();
+            ofSetColor(20);
+            
+            _font.drawString(t,-TEXT_SIZE/2,TEXT_SIZE/4);
+            
+            ofPopMatrix();
+            ofPopStyle();
+            
+            i++;
+        }
+    
+    _fbo_print.end();
+    
+    ofPixels pix;
+    _fbo_print.readToPixels(pix);
+    
+    ofImage img;
+    img.setFromPixels(pix);
+    
+    string file_="tmp/snapshot"+ofGetTimestampString()+".png";
+    img.save(file_);
+    
+    sendToPrinter(file_);
+}
+
+void ofApp::sendToPrinter(string file_){
+    string cmd="lp "+ofToDataPath(file_,true);
+    ofLog()<<cmd;
+    ofSystem(cmd);
 }

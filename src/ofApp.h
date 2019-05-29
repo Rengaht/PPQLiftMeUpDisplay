@@ -18,7 +18,12 @@
 
 #define MAX_CHAR_INTERVAL 10000
 #define MIN_CHAR_INTERVAL 3000
+#define TRANSITION_TIME 500
+#define EMERGE_TIME 1000
 
+#define PRINT_WIDTH 2480
+#define PRINT_HEIGHT 3508
+#define PRINT_TEXT_SIZE 600
 
 class ofApp : public ofBaseApp{
 
@@ -62,6 +67,8 @@ class ofApp : public ofBaseApp{
     
         FrameTimer _timer_char;
         void startNewChar();
+        void pendingChar();
+    
     
         FrameTimer _timer_transition;
         FrameTimer _timer_emerge;
@@ -83,4 +90,13 @@ class ofApp : public ofBaseApp{
     
         ofEasyCam _camera;
         ofxTwistedRibbon *_ribbon;
+    
+        bool _new_word;
+    
+        FrameTimer _timer_print;
+        ofFbo _fbo_print;
+        ofImage _img_print;
+//        string _filename;
+        void createPrinterImage();
+        void sendToPrinter(string file_);
 };
