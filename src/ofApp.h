@@ -10,13 +10,13 @@
 
 #define DRAW_DEBUG
 
-#define MAX_VEL 5.0
+#define MAX_VEL 12.0
 #define MIN_ACC 0.05
 #define PORT 8080
-#define TRAJECT_RAD 1
-#define ACC_SCALE 10.0
+#define TRAJECT_RAD 5
+#define ACC_SCALE 15.0
 
-#define MAX_CHAR_INTERVAL 10000
+#define MAX_CHAR_INTERVAL 12000
 #define MIN_CHAR_INTERVAL 3000
 #define TRANSITION_TIME 500
 #define EMERGE_TIME 1000
@@ -25,6 +25,8 @@
 #define PRINT_HEIGHT 3508
 #define PRINT_TEXT_SIZE 600
 
+#define MSTATE 4
+
 class ofApp : public ofBaseApp{
 
         void draw33Grid(float wid_,float alpha_);
@@ -32,6 +34,10 @@ class ofApp : public ofBaseApp{
         bool isLegalChar(string str_);
     
 	public:
+    
+        enum PState {SLEEP,PLAY,END,PRINT};
+        PState _state;
+        void setState(PState set_);
     
         float REGION_WIDTH;
         float REGION_HEIGHT;
@@ -81,7 +87,7 @@ class ofApp : public ofBaseApp{
     
         float _dmil,_last_mil;
     
-        bool _playing;
+//        bool _playing;
         void startGame();
         void endGame();
     

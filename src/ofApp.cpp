@@ -11,7 +11,7 @@ void ofApp::setup(){
     ofAddListener(_http_utils.newResponseEvent,this,&ofApp::newResponse);
     _http_utils.start();
     
-    REGION_WIDTH=ofGetHeight();
+    REGION_WIDTH=ofGetHeight()*1.2;
     REGION_HEIGHT=ofGetHeight();
     
     TEXT_SIZE=ofGetHeight()*.8/4;
@@ -32,10 +32,11 @@ void ofApp::setup(){
     
     _fbo_print.allocate(PRINT_WIDTH,PRINT_HEIGHT,GL_RGB);
     _img_print.load("print.png");
-    _timer_print=FrameTimer(1000);
+    _timer_print=FrameTimer(10);
     
     
-    startGame();
+//    startGame();
+    setState(PState::SLEEP);
 }
 
 //--------------------------------------------------------------
@@ -48,7 +49,7 @@ void ofApp::update(){
     _timer_emerge.update(_dmil);
     _timer_transition.update(_dmil);
     
-    if(_playing && _timer_char.val()==1){
+    if(_state==PState::PLAY && _timer_char.val()==1){
         sendTrajectory();
         _timer_char.reset();
     }
@@ -78,7 +79,7 @@ void ofApp::update(){
         ofxOscMessage m;
         _osc_receiver.getNextMessage(&m);
         
-        if(_processing) continue;
+        if(_state!=PState::PLAY) continue;
         
         // check for mouse moved message
         if(m.getAddress()=="/acc"){
@@ -216,30 +217,61 @@ void ofApp::draw(){
  
 
 #ifdef DRAW_DEBUG
-    if(_playing){
-        ofPushStyle();
-        ofSetColor(255,0,0,180);
-        ofFill();
-            ofDrawRectangle(0,ofGetHeight()-2,ofGetWidth()*_timer_char.val(),2);
-        
+    switch(_state){
+        case PLAY:
+            ofPushStyle();
+            ofSetColor(255,0,0,180);
+            ofFill();
+                ofDrawRectangle(0,ofGetHeight()-2,ofGetWidth()*_timer_char.val(),2);
+            
 
-        ofPushMatrix();
-        ofTranslate(ofGetWidth()-20, ofGetHeight()-20);
+            ofPushMatrix();
+            ofTranslate(ofGetWidth()-20, ofGetHeight()-20);
+                ofDrawCircle(0, 0, 5);
+                ofDrawBitmapString("play",-50,0);
+            ofPopMatrix();
+            ofPopStyle();
+            break;
+        case SLEEP:
+            ofPushStyle();
+            ofSetColor(0,255,0,180);
+            ofFill();
+            
+            ofPushMatrix();
+            ofTranslate(ofGetWidth()-20, ofGetHeight()-20);
+                ofDrawCircle(0, 0, 5);
+                ofDrawBitmapString("sleep",-50,0);
+            ofPopMatrix();
+            
+            ofPopStyle();
+            break;
+        case END:
+            ofPushStyle();
+            ofSetColor(0,0,255,180);
+            ofFill();
+            
+            ofPushMatrix();
+            ofTranslate(ofGetWidth()-20, ofGetHeight()-20);
+                ofDrawCircle(0, 0, 5);
+                ofDrawBitmapString("finish",-50,0);
+            ofPopMatrix();
+            
+            ofPopStyle();
+            break;
+        case PRINT:
+            ofPushStyle();
+            ofSetColor(120,180);
+            ofFill();
+            
+            ofPushMatrix();
+            ofTranslate(ofGetWidth()-20, ofGetHeight()-20);
             ofDrawCircle(0, 0, 5);
-        ofPopMatrix();
-        ofPopStyle();
-        
-    }else{
-        ofPushStyle();
-        ofSetColor(0,255,0,180);
-        ofFill();
-        
-        ofPushMatrix();
-        ofTranslate(ofGetWidth()-20, ofGetHeight()-20);
-            ofDrawCircle(0, 0, 5);
-        ofPopMatrix();
-        
-        ofPopStyle();
+            ofDrawBitmapString("print",-50,0);
+            ofPopMatrix();
+            
+            ofPopStyle();
+            break;
+            
     }
     ofPushMatrix();
     ofTranslate(20, ofGetHeight()-20);
@@ -256,15 +288,43 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
     switch(key){
         case 'r':
-            startGame();
+            setState(PState::PLAY);
             break;
-        case 's':
+        case 'e':
+            setState(PState::END);
+            break;
+        case 'n': // reset trajectory
             startNewChar();
             break;
-        case 'p':
-            endGame();
+        case 'p': // print
+            createPrinterImage();
+            break;
+        case ' ': // change state
+            setState(PState((_state+1)%MSTATE));
+            break;
+        case 'f':
+            ofToggleFullscreen();
             break;
     }
+}
+void ofApp::setState(PState set_){
+    
+    _state=set_;
+    switch(_state){
+        case SLEEP:
+            reset();
+            break;
+        case PLAY:
+            startGame();
+            break;
+        case END:
+            endGame();
+            break;
+        case PRINT:
+            createPrinterImage();
+            break;
+    }
+    
 }
 
 //--------------------------------------------------------------
@@ -285,6 +345,10 @@ void ofApp::reset(){
     _new_word=false;
     
     _timer_print.reset();
+    
+    delete _ribbon;
+    _ribbon=new ofxTwistedRibbon();
+    _ribbon->thickness=TRAJECT_RAD;
 }
 
 
@@ -337,7 +401,9 @@ void ofApp::pendingChar(){
     float t=ofRandom(MIN_CHAR_INTERVAL,MAX_CHAR_INTERVAL);
     _timer_char=FrameTimer(t);
     _timer_char.restart();
+    
     _processing=false;
+    
 }
 
 void ofApp::sendTrajectory(){
@@ -370,6 +436,8 @@ void ofApp::sendTrajectory(){
     
     _http_utils.addForm(form);
     _processing=true;
+    
+    
 }
 
 void ofApp::startTextTransition(){
@@ -420,7 +488,7 @@ void ofApp::startNewChar(){
     
     delete _ribbon;
     _ribbon=new ofxTwistedRibbon();
-    _ribbon->thickness=5;
+    _ribbon->thickness=TRAJECT_RAD;
     
     ofLog()<<">>> next char t="<<t;
     
@@ -430,11 +498,13 @@ void ofApp::startGame(){
     
     
     ofLog()<<"------ Game Start ------ ";
-    _playing=true;
+//    _playing=true;
     _paused=true;
     _processing=false;
     
-    reset();
+//    _state=PLAY;
+    
+//    reset();
     startNewChar();
     
 }
@@ -442,10 +512,12 @@ void ofApp::startGame(){
 void ofApp::endGame(){
     
     ofLog()<<"------ End of Game ------ ";
-    _playing=false;
+//    _playing=false;
+    
+    _state=END;
     
     // TODO: print!
-    _timer_print.restart();
+    //_timer_print.restart();
 //    createPrinterImage();
 }
 
@@ -520,6 +592,9 @@ bool ofApp::isLegalChar(string str){
 
 
 void ofApp::createPrinterImage(){
+    
+    if(_text.size()<1) return;
+    
     _fbo_print.begin();
     ofClear(255);
     _img_print.draw(0,0,PRINT_WIDTH,PRINT_HEIGHT);
