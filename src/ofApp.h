@@ -10,11 +10,14 @@
 
 #define DRAW_DEBUG
 
-#define MAX_VEL 12.0
+#define MAX_VEL 50.0
 #define MIN_ACC 0.05
 #define PORT 8080
 #define TRAJECT_RAD 5
-#define ACC_SCALE 15.0
+#define ACC_SCALE 25.0
+#define DATA_SMOOTH .2
+#define AUTO_ROT_SCALE .2
+#define GUIDE_RATIO 1
 
 #define MAX_CHAR_INTERVAL 12000
 #define MIN_CHAR_INTERVAL 3000
@@ -76,6 +79,7 @@ class ofApp : public ofBaseApp{
         void pendingChar();
     
     
+    
         FrameTimer _timer_transition;
         FrameTimer _timer_emerge;
         ofVec3f _trans_dest_pos;
@@ -98,6 +102,7 @@ class ofApp : public ofBaseApp{
         ofxTwistedRibbon *_ribbon;
     
         bool _new_word;
+        vector<string> _waiting_word;
     
         FrameTimer _timer_print;
         ofFbo _fbo_print;
@@ -105,4 +110,6 @@ class ofApp : public ofBaseApp{
 //        string _filename;
         void createPrinterImage();
         void sendToPrinter(string file_);
+    
+        list<list<ofVec2f>> _tmp_trace;
 };

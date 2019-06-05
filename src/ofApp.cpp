@@ -11,7 +11,7 @@ void ofApp::setup(){
     ofAddListener(_http_utils.newResponseEvent,this,&ofApp::newResponse);
     _http_utils.start();
     
-    REGION_WIDTH=ofGetHeight()*1.2;
+    REGION_WIDTH=ofGetHeight();
     REGION_HEIGHT=ofGetHeight();
     
     TEXT_SIZE=ofGetHeight()*.8/4;
@@ -34,7 +34,7 @@ void ofApp::setup(){
     _img_print.load("print.png");
     _timer_print=FrameTimer(10);
     
-    
+    ofSetFullscreen(true);
 //    startGame();
     setState(PState::SLEEP);
 }
@@ -62,11 +62,18 @@ void ofApp::update(){
     
     if(_new_word){
         // check if in font
-        auto r=_font.getStringBoundingBox(_text.back(), 0, 0);
-        if(r.width==0){
-            _text.pop_back();
+        for(auto it=_waiting_word.begin();it!=_waiting_word.end();){
+            auto r=_font.getStringBoundingBox(*it, 0, 0);
+            if(r.width==0) _waiting_word.erase(it);
+            else it++;
+        }
+        
+        if(_waiting_word.size()==0){
+//            _text.pop_back();
             pendingChar();
         }else{
+            
+            _text.push_back(_waiting_word[floor(ofRandom(_waiting_word.size()))]);
             startTextTransition();
         }
         _new_word=false;
@@ -85,13 +92,14 @@ void ofApp::update(){
         if(m.getAddress()=="/acc"){
             
             ofVec3f tmp_rot(m.getArgAsFloat(3),m.getArgAsFloat(4),m.getArgAsFloat(5));
-            _rot=_rot*.5+tmp_rot*.5;
+            _rot=_rot*(1.0-DATA_SMOOTH)+tmp_rot*DATA_SMOOTH;
             
             ofVec3f tmp_acc(m.getArgAsFloat(0),m.getArgAsFloat(1),m.getArgAsFloat(2));
             
             if(tmp_acc.length()<MIN_ACC){
                 tmp_acc=ofVec3f(0);
-                _vel*=.5;
+                _vel*=.8;
+                _acc.rotateRad(ofRandom(-AUTO_ROT_SCALE,AUTO_ROT_SCALE)*PI,ofRandom(-AUTO_ROT_SCALE,AUTO_ROT_SCALE)*PI,ofRandom(-AUTO_ROT_SCALE,AUTO_ROT_SCALE)*PI);
                 
                 if(!_paused){
                     _paused=true;
@@ -102,9 +110,13 @@ void ofApp::update(){
                 tmp_acc*=ACC_SCALE;
                 tmp_acc.rotateRad(_rot.x, _rot.y, _rot.z);
                 
-                _acc=_acc*.5+tmp_acc*.5;
+                _acc=_acc*DATA_SMOOTH+tmp_acc*(1.0-DATA_SMOOTH);
+                
+                if(ofRandom(30)<1)
+                    _acc.rotateRad(ofRandom(-AUTO_ROT_SCALE,AUTO_ROT_SCALE)*PI,ofRandom(-AUTO_ROT_SCALE,AUTO_ROT_SCALE)*PI,ofRandom(-AUTO_ROT_SCALE,AUTO_ROT_SCALE)*PI);
                 
                 _vel+=_acc;
+                if(_vel.length()>MAX_VEL) _vel.scale(MAX_VEL);
                 
                 if(_paused){
 //                    ofLog()<<"... resume ...";
@@ -114,19 +126,22 @@ void ofApp::update(){
             
             ofVec3f tmp_pos=_pos+_vel;
             
-            if(tmp_pos.x>REGION_WIDTH/2){ _acc.x=0; _vel.x=0;}
-            if(tmp_pos.x<-REGION_WIDTH/2){ _acc.x=0; _vel.x=0;}
-            if(tmp_pos.y>REGION_HEIGHT/2){ _acc.y=0; _vel.y=0;}
-            if(tmp_pos.y<-REGION_HEIGHT/2){ _acc.y=0; _vel.y=0;}
-            if(tmp_pos.z>0){ _acc.z=0; _vel.z=0;}
-            if(tmp_pos.z<-REGION_WIDTH){ _acc.z=0; _vel.z=0;}
+            if(tmp_pos.x>REGION_WIDTH/2){
+                _acc.x*=0; _vel.x=-abs(_vel.x); tmp_pos=_pos+_vel;}
+            if(tmp_pos.x<-REGION_WIDTH/2){ _acc.x*=0; _vel.x=abs(_vel.x);  tmp_pos=_pos+_vel;}
+            if(tmp_pos.y>REGION_HEIGHT/2){
+                _acc.y*=0; _vel.y=-abs(_vel.y);  tmp_pos=_pos+_vel;}
+            if(tmp_pos.y<-REGION_HEIGHT/2){ _acc.y*=0; _vel.y=abs(_vel.y);  tmp_pos=_pos+_vel;}
             
+            if(tmp_pos.z>0){ _acc.z=0; _vel.z=0;  tmp_pos=_pos+_vel;}
+            if(tmp_pos.z<-REGION_WIDTH){ _acc.z=0; _vel.z=0;  tmp_pos=_pos+_vel;}
             
+
             tmp_pos.x=ofClamp(tmp_pos.x,-REGION_WIDTH/2,REGION_WIDTH/2);
             tmp_pos.y=ofClamp(tmp_pos.y,-REGION_HEIGHT/2,REGION_HEIGHT/2);
-            tmp_pos.z=ofClamp(tmp_pos.z,-REGION_WIDTH/2,REGION_WIDTH/2);
+            tmp_pos.z=0;//ofClamp(tmp_pos.z,-REGION_WIDTH/2,REGION_WIDTH/2);
             
-            (_trajectory.back()).addVertex(ofVec3f(tmp_pos.x,tmp_pos.y,tmp_pos.z));
+            (_trajectory.back()).addVertex(tmp_pos);
 //            ofLog()<<"add pos: "<<tmp_pos;
             _pos=tmp_pos;
             
@@ -217,6 +232,22 @@ void ofApp::draw(){
  
 
 #ifdef DRAW_DEBUG
+    
+    
+//    ofPushMatrix();
+//    ofTranslate(20, 20);
+//    int k=0;
+//    for(auto& p:_tmp_trace){
+//        ofSetColor(ofColor::fromHsb((k*50)%255, 255, 255));
+//        ofNoFill();
+//
+//        ofBeginShape();
+//            for(auto& t:p) ofVertex(t.x,t.y);
+//        ofEndShape();
+//        k++;
+//    }
+//    ofPopMatrix();
+    
     switch(_state){
         case PLAY:
             ofPushStyle();
@@ -256,6 +287,8 @@ void ofApp::draw(){
                 ofDrawBitmapString("finish",-50,0);
             ofPopMatrix();
             
+           
+            
             ofPopStyle();
             break;
         case PRINT:
@@ -266,7 +299,7 @@ void ofApp::draw(){
             ofPushMatrix();
             ofTranslate(ofGetWidth()-20, ofGetHeight()-20);
             ofDrawCircle(0, 0, 5);
-            ofDrawBitmapString("print",-50,0);
+            ofDrawBitmapString("printed",-50,0);
             ofPopMatrix();
             
             ofPopStyle();
@@ -287,22 +320,23 @@ void ofApp::draw(){
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
     switch(key){
-        case 'r':
-            setState(PState::PLAY);
-            break;
-        case 'e':
-            setState(PState::END);
+        case 'r': //reset
+        case 'R':
+            setState(PState::SLEEP);
             break;
         case 'n': // reset trajectory
+        case 'N':
             startNewChar();
             break;
         case 'p': // print
+        case 'P':
             createPrinterImage();
             break;
         case ' ': // change state
             setState(PState((_state+1)%MSTATE));
             break;
         case 'f':
+        case 'F':
             ofToggleFullscreen();
             break;
     }
@@ -360,7 +394,10 @@ void ofApp::newResponse(ofxHttpResponse & response){
         int len=t.size();
       
         bool found_=false;
-        for(int i=0;i<len;++i){
+        
+        _waiting_word.clear();
+        
+        for(int i=0;i<len;i++){
             string tmp_=t[i].asString();
             if(isLegalChar(tmp_)){
                 
@@ -371,9 +408,10 @@ void ofApp::newResponse(ofxHttpResponse & response){
                     }
                 }
                 if(!repeat_){
-                    _text.push_back(t[i].asString());
+//                    _text.push_back(t[i].asString());
                     found_=true;
-                    break;
+                    //break;
+                    _waiting_word.push_back(tmp_);
                 }
             }
         }
@@ -408,25 +446,54 @@ void ofApp::pendingChar(){
 
 void ofApp::sendTrajectory(){
     ofxHttpForm form;
-    form.action="https://www.google.com.tw/inputtools/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8";
+    form.action="https://www.google.com.tw/inputtools/request?ime=handwriting&ha&cs=1&oe=UTF-8";
     form.method=OFX_HTTP_POST;
     form.addHeaderField("content-type","application/json");
     
     ofxJSONElement json_;
 
     ofxJSONElement req_;
-    ofxJSONElement trace_;
     int i=0;
     auto verts= _trajectory.back().getVertices();
+    
+    
+    int seg=floor(ofRandom(3,30));
+    int c=verts.size()/seg;
+    
+    ofxJSONElement trace_;
+    
+    _tmp_trace.clear();
+    _tmp_trace.push_back(list<ofVec2f>());
+    
     for(auto&p:verts){
-        trace_[0][i]=p.x+REGION_WIDTH/2;
-        trace_[1][i]=p.y+REGION_HEIGHT/2;
+        
+        auto pp=_camera.worldToCamera(p);
+        trace_[0][i]=p.x+REGION_WIDTH/2*GUIDE_RATIO;
+        trace_[1][i]=p.y+REGION_HEIGHT/2*GUIDE_RATIO;
+        
+        _tmp_trace.back().push_back(ofVec2f(p.x+REGION_WIDTH/2*GUIDE_RATIO,p.y+REGION_HEIGHT/2*GUIDE_RATIO));
         i++;
+        
+        if(i>=seg && ofRandom(10)<1){
+            req_["ink"].append(trace_);
+            trace_.clear();
+            i=0;
+            
+            _tmp_trace.push_back(list<ofVec2f>());
+        }
+        
     }
     
-    req_["ink"][0]=trace_;
+//    req_["ink"][0]=trace_;
     req_["language"]="zh_TW";
-    req_["max_num_result"]=1;
+    req_["max_num_result"]=20;
+    
+    ofxJSONElement guide_;
+    guide_["writing_area_width"]=GUIDE_RATIO*REGION_WIDTH;
+    guide_["writing_area_height"]=GUIDE_RATIO*REGION_HEIGHT;
+    
+    req_["writing_guide"]=guide_;
+    
     json_["requests"][0]=req_;
     json_["options"]="enable_pre_space";
     
