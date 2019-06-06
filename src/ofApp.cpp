@@ -4,6 +4,7 @@
 void ofApp::setup(){
     
     ofHideCursor();
+    DRAW_DEBUG=true;
     
     std::cout << "listening for osc messages on port " << PORT << "\n";
     _osc_receiver.setup( PORT );
@@ -50,7 +51,8 @@ void ofApp::update(){
     _timer_transition.update(_dmil);
     
     if(_state==PState::PLAY && _timer_char.val()==1){
-        sendTrajectory();
+        sendTrajectory(ofRandom(3,30));
+//        sendTrajectory(1);
         _timer_char.reset();
     }
     
@@ -230,8 +232,8 @@ void ofApp::draw(){
     
     
  
-
-#ifdef DRAW_DEBUG
+    if(!DRAW_DEBUG) return;
+//#ifdef DRAW_DEBUG
     
     
 //    ofPushMatrix();
@@ -313,7 +315,7 @@ void ofApp::draw(){
     ofRotateZ(ofRadToDeg(_rot.z));
         ofDrawAxis(10);
     ofPopMatrix();
-#endif
+//#endif
     
 }
 
@@ -338,6 +340,16 @@ void ofApp::keyPressed(int key){
         case 'f':
         case 'F':
             ofToggleFullscreen();
+            break;
+//        case 't':
+//            sendTrajectory(1);
+//            break;
+//        case 'y':
+//            sendTrajectory(ofRandom(3,30));
+//            break;
+        case 'd':
+        case 'D':
+            DRAW_DEBUG=!DRAW_DEBUG;
             break;
     }
 }
@@ -444,7 +456,10 @@ void ofApp::pendingChar(){
     
 }
 
-void ofApp::sendTrajectory(){
+void ofApp::sendTrajectory(int seg_){
+    
+    ofLog()<<"trajectory seg= "<<seg_;
+    
     ofxHttpForm form;
     form.action="https://www.google.com.tw/inputtools/request?ime=handwriting&ha&cs=1&oe=UTF-8";
     form.method=OFX_HTTP_POST;
@@ -457,32 +472,36 @@ void ofApp::sendTrajectory(){
     auto verts= _trajectory.back().getVertices();
     
     
-    int seg=floor(ofRandom(3,30));
-    int c=verts.size()/seg;
+//    int seg=floor(ofRandom(3,30));
+    int c=floor(verts.size()/seg_);
     
     ofxJSONElement trace_;
     
     _tmp_trace.clear();
     _tmp_trace.push_back(list<ofVec2f>());
     
+    float df=.2;
+    ofVec2f offset_(ofRandom(-df,df)*REGION_WIDTH,ofRandom(-df,df)*REGION_HEIGHT);
+    
     for(auto&p:verts){
         
         auto pp=_camera.worldToCamera(p);
-        trace_[0][i]=p.x+REGION_WIDTH/2*GUIDE_RATIO;
-        trace_[1][i]=p.y+REGION_HEIGHT/2*GUIDE_RATIO;
+        trace_[0][i]=p.x+REGION_WIDTH/2*GUIDE_RATIO+offset_.x;
+        trace_[1][i]=p.y+REGION_HEIGHT/2*GUIDE_RATIO+offset_.y;
         
-        _tmp_trace.back().push_back(ofVec2f(p.x+REGION_WIDTH/2*GUIDE_RATIO,p.y+REGION_HEIGHT/2*GUIDE_RATIO));
+        _tmp_trace.back().push_back(ofVec2f(trace_[0][i].asFloat(),trace_[1][i].asFloat()));
         i++;
         
-        if(i>=seg && ofRandom(10)<1){
+        if(i>=c && ofRandom(seg_)<1){
             req_["ink"].append(trace_);
             trace_.clear();
             i=0;
-            
+            offset_=ofVec2f(ofRandom(-df,df)*REGION_WIDTH,ofRandom(-df,df)*REGION_HEIGHT);
             _tmp_trace.push_back(list<ofVec2f>());
         }
-        
+      
     }
+    if(req_["ink"].size()<1) req_["ink"].append(trace_);
     
 //    req_["ink"][0]=trace_;
     req_["language"]="zh_TW";

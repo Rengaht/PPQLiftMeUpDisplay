@@ -8,7 +8,7 @@
 #include "ofxTwistedRibbon.h"
 #include "FrameTimer.h"
 
-#define DRAW_DEBUG
+//#define DRAW_DEBUG
 
 #define MAX_VEL 50.0
 #define MIN_ACC 0.05
@@ -38,6 +38,8 @@ class ofApp : public ofBaseApp{
     
 	public:
     
+        bool DRAW_DEBUG;
+    
         enum PState {SLEEP,PLAY,END,PRINT};
         PState _state;
         void setState(PState set_);
@@ -57,7 +59,7 @@ class ofApp : public ofBaseApp{
     
         void reset();
         void newResponse(ofxHttpResponse & response);
-        void sendTrajectory();
+        void sendTrajectory(int seg_);
     
         list<ofPolyline> _trajectory;
         ofVec3f _acc;
