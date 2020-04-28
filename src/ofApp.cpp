@@ -4,7 +4,13 @@
 void ofApp::setup(){
     
     ofHideCursor();
-    DRAW_DEBUG=true;
+    DRAW_DEBUG=false;
+    
+    _color_text=ofColor(69,254,7);
+    _color_ribbon_start=ofColor(255,0,137);
+    _color_ribbon_end=ofColor(69,254,7);
+    _color_background=ofColor(0);
+    _color_grid=ofColor(255);
     
     std::cout << "listening for osc messages on port " << PORT << "\n";
     _osc_receiver.setup( PORT );
@@ -35,7 +41,10 @@ void ofApp::setup(){
     _img_print.load("print.png");
     _timer_print=FrameTimer(10);
     
-    ofSetFullscreen(true);
+    
+    _fbo_tmp.allocate(1280,720,GL_RGB);
+    
+//    ofSetFullscreen(true);
 //    startGame();
     setState(PState::SLEEP);
 }
@@ -145,9 +154,13 @@ void ofApp::update(){
             
             (_trajectory.back()).addVertex(tmp_pos);
 //            ofLog()<<"add pos: "<<tmp_pos;
-            _pos=tmp_pos;
+            _pos=_pos*(1.0-DATA_SMOOTH)+tmp_pos*DATA_SMOOTH;
             
-            ofColor color(int(ofGetElapsedTimef() * 10) % 55+200,0,0);
+//            ofColor color(int(ofGetElapsedTimef() * 10) % 55+200,0,0);
+//            ofColor color=lerpColor(_color_ribbon_start,_color_ribbon_end,sin(((int)_ribbon->points.size()%20)/20.0*PI));
+            float dist_=ofClamp(_pos.distance(ofPoint(0,0))/REGION_WIDTH*2,0,1);
+            ofColor color=lerpColor(_color_ribbon_start,_color_ribbon_end,1.0-dist_);
+//            ofLog()<<color;
 //            int hue = int(ofGetElapsedTimef() * 10) % 255;
 //            color.setHsb(hue, 120, 220);
             _ribbon->update(_pos,color);
@@ -155,16 +168,21 @@ void ofApp::update(){
         }
     }
 }
-
+ofColor ofApp::lerpColor(ofColor start_,ofColor end_,float p){
+    return ofColor(ofLerp((float)start_.r,(float)end_.r,p),
+                   ofLerp((float)start_.g,(float)end_.g,p),
+                   ofLerp((float)start_.b,(float)end_.b,p));
+}
 //--------------------------------------------------------------
 void ofApp::draw(){
     
     
-    ofBackground(255);
+    ofBackground(_color_background);
+    ofPushStyle();
+    ofSetColor(_color_background);
+        ofDrawRectangle(0,0, REGION_WIDTH, REGION_HEIGHT);
+    ofPopStyle();
     
-    ofSetColor(250);
-    ofDrawRectangle(0,0, REGION_WIDTH, REGION_HEIGHT);
-
 //    _camera.begin();
 
     ofPushMatrix();
@@ -205,50 +223,53 @@ void ofApp::draw(){
     for(int i=0;i<4;++i){
         ofPushMatrix();
         ofTranslate(getTextPos(i));
-        draw33Grid(TEXT_SIZE,1);
+        draw33Grid(TEXT_SIZE,_color_grid,1);
         ofPopMatrix();
     }
     
     ofPushMatrix();
     int i=0;
     for(auto&t :_text){
-       
+
         ofPushMatrix();
         ofTranslate(getTextPos(i)); //center
-        
+
         ofPushStyle();
         if(i==_text.size()-1){
-            ofSetColor(120,255*_timer_emerge.valEaseOut());
-        }else ofSetColor(120);
-       
+            ofSetColor(_color_text,255*_timer_emerge.valEaseOut());
+        }else ofSetColor(_color_text);
+
         _font.drawString(t,-TEXT_SIZE/2,TEXT_SIZE/4);
-        
+
         ofPopMatrix();
         ofPopStyle();
-        
+
         i++;
     }
     ofPopMatrix();
     
-    
+
+   
  
     if(!DRAW_DEBUG) return;
 //#ifdef DRAW_DEBUG
     
+     // draw separated characters
+    ofPushMatrix();
+    ofTranslate(20, 20);
+    int k=0;
+    for(auto& p:_tmp_trace){
+        ofSetColor(ofColor::fromHsb((k*50)%255, 255, 255));
+        ofNoFill();
+        
+        ofBeginShape();
+        for(auto& t:p) ofVertex(t.x,t.y);
+        ofEndShape();
+        k++;
+    }
+    ofPopMatrix();
     
-//    ofPushMatrix();
-//    ofTranslate(20, 20);
-//    int k=0;
-//    for(auto& p:_tmp_trace){
-//        ofSetColor(ofColor::fromHsb((k*50)%255, 255, 255));
-//        ofNoFill();
-//
-//        ofBeginShape();
-//            for(auto& t:p) ofVertex(t.x,t.y);
-//        ofEndShape();
-//        k++;
-//    }
-//    ofPopMatrix();
+   
     
     switch(_state){
         case PLAY:
@@ -322,6 +343,7 @@ void ofApp::draw(){
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
     switch(key){
+        
         case 'r': //reset
         case 'R':
             setState(PState::SLEEP);
@@ -372,6 +394,24 @@ void ofApp::setState(PState set_){
     }
     
 }
+void ofApp::nextState(){
+    switch(_state){
+        case SLEEP:
+            setState(PState::PLAY);
+            break;
+        case PLAY:
+            setState(PState::END);
+            break;
+        case END:
+            setState(PState::PRINT);
+            break;
+        case PRINT:
+            setState(PState::SLEEP);
+            break;
+    }
+    
+}
+
 
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button){
@@ -504,7 +544,7 @@ void ofApp::sendTrajectory(int seg_){
     if(req_["ink"].size()<1) req_["ink"].append(trace_);
     
 //    req_["ink"][0]=trace_;
-    req_["language"]="zh_TW";
+    req_["language"]="zh";
     req_["max_num_result"]=20;
     
     ofxJSONElement guide_;
@@ -558,6 +598,51 @@ void ofApp::onTransitionEnd(int& e){
 }
 void ofApp::startNewChar(){
     
+    
+    ///////////////////////////////////////////////////////////////////////////
+    
+//    _fbo_tmp.begin();
+//    ofClear(255);
+//    ofPushMatrix();
+//    ofTranslate(20, 20);
+//    int k=0;
+//    for(auto& p:_tmp_trace){
+//        ofSetColor(ofColor::fromHsb((k*50)%255, 255, 255));
+//        ofSetLineWidth(5);
+//        ofNoFill();
+//
+//        ofBeginShape();
+//        for(auto& t:p) ofVertex(t.x,t.y);
+//        ofEndShape();
+//        k++;
+//    }
+//    ofPopMatrix();
+//    _fbo_tmp.end();
+//
+//    ofPixels pix;
+//    _fbo_tmp.readToPixels(pix);
+//
+//    ofImage img;
+//    img.setFromPixels(pix);
+//
+//    string file_="tmp/qqq"+ofGetTimestampString()+".png";
+//    img.save(file_);
+//
+//    _fbo_tmp.begin();
+//    ofClear(255);
+//    ofPushMatrix();
+//    ofTranslate(REGION_WIDTH/2, REGION_HEIGHT/2);
+//        ofSetColor(255);
+//        _ribbon->draw();
+//    ofPopMatrix();
+//    _fbo_tmp.end();
+//
+//    _fbo_tmp.readToPixels(pix);
+//    img.setFromPixels(pix);
+//    file_="tmp/sss"+ofGetTimestampString()+".png";
+//    img.save(file_);
+    ///////////////////////////////////////////////////////////////////////////
+    
     _timer_transition.reset();
     
     _trajectory.push_back(ofPolyline());
@@ -607,7 +692,7 @@ void ofApp::endGame(){
 //    createPrinterImage();
 }
 
-void ofApp::draw33Grid(float wid_,float alpha_){
+void ofApp::draw33Grid(float wid_,ofColor color_,float alpha_){
     
     ofPushMatrix();
     ofTranslate(-wid_/2,-wid_/2);
@@ -619,7 +704,7 @@ void ofApp::draw33Grid(float wid_,float alpha_){
 //    ofPopStyle();
     
     ofPushStyle();
-    ofSetColor(20,255*alpha_);
+    ofSetColor(color_,255*alpha_);
     ofSetLineWidth(3);
     ofNoFill();
         ofDrawRectangle(0,0,wid_,wid_);
@@ -683,13 +768,17 @@ void ofApp::createPrinterImage(){
     
     _fbo_print.begin();
     ofClear(255);
-    _img_print.draw(0,0,PRINT_WIDTH,PRINT_HEIGHT);
+    
+    ofPushStyle();
+    ofColor(255);
+        _img_print.draw(0,0,PRINT_WIDTH,PRINT_HEIGHT);
+    ofPopStyle();
     
         int i=0;
         for(auto& t:_text){
             ofPushMatrix();
             ofTranslate(PRINT_WIDTH/2,PRINT_HEIGHT/2-PRINT_TEXT_SIZE*_text.size()/2.0+PRINT_TEXT_SIZE*(i+.5));
-            draw33Grid(PRINT_TEXT_SIZE,1);
+            draw33Grid(PRINT_TEXT_SIZE,ofColor(0),1);
             
             float sc_=(float)PRINT_TEXT_SIZE/TEXT_SIZE;
             ofScale(sc_,sc_);

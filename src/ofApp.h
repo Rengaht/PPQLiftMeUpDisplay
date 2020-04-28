@@ -15,7 +15,7 @@
 #define PORT 8080
 #define TRAJECT_RAD 5
 #define ACC_SCALE 25.0
-#define DATA_SMOOTH .2
+#define DATA_SMOOTH .3
 #define AUTO_ROT_SCALE .2
 #define GUIDE_RATIO 1
 
@@ -32,7 +32,7 @@
 
 class ofApp : public ofBaseApp{
 
-        void draw33Grid(float wid_,float alpha_);
+        void draw33Grid(float wid_,ofColor color_,float alpha_);
         ofVec2f getTextPos(int idx_);
         bool isLegalChar(string str_);
     
@@ -43,6 +43,7 @@ class ofApp : public ofBaseApp{
         enum PState {SLEEP,PLAY,END,PRINT};
         PState _state;
         void setState(PState set_);
+        void nextState();
     
         float REGION_WIDTH;
         float REGION_HEIGHT;
@@ -73,7 +74,7 @@ class ofApp : public ofBaseApp{
         ofxHttpUtils _http_utils;
     
         list<string> _text;
-    
+        
         ofxTrueTypeFontUL2 _font;
     
         FrameTimer _timer_char;
@@ -114,4 +115,13 @@ class ofApp : public ofBaseApp{
         void sendToPrinter(string file_);
     
         list<list<ofVec2f>> _tmp_trace;
+    
+        ofFbo _fbo_tmp;
+    
+        
+        ofColor _color_text,_color_ribbon_start,_color_ribbon_end;
+        ofColor _color_background,_color_grid;
+    
+        ofColor lerpColor(ofColor start_,ofColor end_,float p);
+    
 };
