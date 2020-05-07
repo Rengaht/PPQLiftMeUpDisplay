@@ -13,7 +13,7 @@
 #define MAX_VEL 50.0
 #define MIN_ACC 0.05
 #define PORT 8080
-#define TRAJECT_RAD 5
+#define TRAJECT_RAD 8
 #define ACC_SCALE 25.0
 #define DATA_SMOOTH .3
 #define AUTO_ROT_SCALE .2
@@ -29,6 +29,12 @@
 #define PRINT_TEXT_SIZE 600
 
 #define MSTATE 4
+
+#define MAX_STROKE_FOR_CHAR 15
+
+#define SELECTED_CHAR_COUNT 44
+#define SELECTED_DISTANCE_MAPPING 5
+//#define USE_SELECTED_CHAR
 
 class ofApp : public ofBaseApp{
 
@@ -57,6 +63,8 @@ class ofApp : public ofBaseApp{
 
 		void keyPressed(int key);
 		void mouseReleased(int x, int y, int button);
+        
+        void windowResized(int w, int h);
     
         void reset();
         void newResponse(ofxHttpResponse & response);
@@ -123,5 +131,12 @@ class ofApp : public ofBaseApp{
         ofColor _color_background,_color_grid;
     
         ofColor lerpColor(ofColor start_,ofColor end_,float p);
+    
+        void uploadFourWords(string str_);
+        string encodeURL(string url_);
+    
+        string* _selected_char;
+        bool getSelectedChar();
+        list<list<ofVec3f>> getSimplifiedTraceSegments(list<ofVec3f> trajectory_);
     
 };

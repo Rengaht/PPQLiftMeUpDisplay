@@ -3,14 +3,28 @@
 //--------------------------------------------------------------
 void ofApp::setup(){
     
+    
+    uploadFourWords("這是中文");
+    _selected_char=new string[SELECTED_CHAR_COUNT]{
+                    "口","六","中","心","史",
+                    "回","金","花","抬","佳",
+                    "亮","神","留","存","紅",
+                    "過","書","純","昕","海",
+                    "粉","武","裕","榕","活",
+                    "悠","爽","陽","發","營",
+                    "瑞","榮","廣","聽","開",
+                    "舒","樂","嗨","製","熱",
+                    "酷","鬆","驫","藝"};
+     
+    
     ofHideCursor();
     DRAW_DEBUG=false;
     
-    _color_text=ofColor(69,254,7);
+    _color_text=ofColor(0,0,0);
     _color_ribbon_start=ofColor(255,0,137);
-    _color_ribbon_end=ofColor(69,254,7);
-    _color_background=ofColor(0);
-    _color_grid=ofColor(255);
+    _color_ribbon_end=ofColor(255,0,0);
+    _color_background=ofColor(255);
+    _color_grid=ofColor(0);
     
     std::cout << "listening for osc messages on port " << PORT << "\n";
     _osc_receiver.setup( PORT );
@@ -18,11 +32,9 @@ void ofApp::setup(){
     ofAddListener(_http_utils.newResponseEvent,this,&ofApp::newResponse);
     _http_utils.start();
     
-    REGION_WIDTH=ofGetHeight();
-    REGION_HEIGHT=ofGetHeight();
     
-    TEXT_SIZE=ofGetHeight()*.8/4;
-    TEXT_POS=REGION_WIDTH+(ofGetWidth()-REGION_WIDTH)/2;
+    windowResized(ofGetWidth(),ofGetHeight());
+    
     _font.loadFont("HuaKangWeiBeiTi-1.ttc", TEXT_SIZE*.75);
     
     _dmil=ofGetElapsedTimeMillis();
@@ -42,7 +54,7 @@ void ofApp::setup(){
     _timer_print=FrameTimer(10);
     
     
-    _fbo_tmp.allocate(1280,720,GL_RGB);
+//    _fbo_tmp.allocate(1280,720,GL_RGB);
     
 //    ofSetFullscreen(true);
 //    startGame();
@@ -60,9 +72,14 @@ void ofApp::update(){
     _timer_transition.update(_dmil);
     
     if(_state==PState::PLAY && _timer_char.val()==1){
+#ifdef USE_SELECTED_CHAR
+        if(getSelectedChar()) _timer_char.reset();
+#else
         sendTrajectory(ofRandom(3,30));
-//        sendTrajectory(1);
         _timer_char.reset();
+#endif
+//        sendTrajectory(1);
+        
     }
     
     _timer_print.update(_dmil);
@@ -159,7 +176,8 @@ void ofApp::update(){
 //            ofColor color(int(ofGetElapsedTimef() * 10) % 55+200,0,0);
 //            ofColor color=lerpColor(_color_ribbon_start,_color_ribbon_end,sin(((int)_ribbon->points.size()%20)/20.0*PI));
             float dist_=ofClamp(_pos.distance(ofPoint(0,0))/REGION_WIDTH*2,0,1);
-            ofColor color=lerpColor(_color_ribbon_start,_color_ribbon_end,1.0-dist_);
+            ofColor color=lerpColor(_color_ribbon_start,_color_ribbon_end,
+                                    dist_);
 //            ofLog()<<color;
 //            int hue = int(ofGetElapsedTimef() * 10) % 255;
 //            color.setHsb(hue, 120, 220);
@@ -178,6 +196,12 @@ void ofApp::draw(){
     
     
     ofBackground(_color_background);
+    
+    ofPushMatrix();
+    float screen_scale=ofGetHeight()/720.0;
+//    ofScale(screen_scale,screen_scale);
+    
+    
     ofPushStyle();
     ofSetColor(_color_background);
         ofDrawRectangle(0,0, REGION_WIDTH, REGION_HEIGHT);
@@ -186,7 +210,7 @@ void ofApp::draw(){
 //    _camera.begin();
 
     ofPushMatrix();
-    ofTranslate(REGION_WIDTH/2, REGION_HEIGHT/2);
+    
     
     ofPushStyle();
     ofNoFill();
@@ -194,7 +218,7 @@ void ofApp::draw(){
 
     ofPushMatrix();
     float t=_timer_transition.val();
-    
+    ofTranslate(REGION_WIDTH/2, REGION_HEIGHT/2);
    
 
     ofVec3f pos_(ofLerp(0,_trans_dest_pos.x,t),ofLerp(0,_trans_dest_pos.y,t),ofLerp(0,_trans_dest_pos.z,t));
@@ -202,7 +226,7 @@ void ofApp::draw(){
     
     
     ofTranslate(pos_);
-    ofScale(scl_,scl_);;
+    ofScale(scl_,scl_);
     ofSetColor(255,0,0,255*(1.0-t));
 //    _trajectory.back().draw();
     _ribbon->draw();
@@ -249,7 +273,7 @@ void ofApp::draw(){
     ofPopMatrix();
     
 
-   
+    ofPopMatrix();
  
     if(!DRAW_DEBUG) return;
 //#ifdef DRAW_DEBUG
@@ -337,6 +361,16 @@ void ofApp::draw(){
         ofDrawAxis(10);
     ofPopMatrix();
 //#endif
+    
+}
+
+void ofApp::windowResized(int w,int h){
+    
+   TEXT_SIZE=ofGetHeight()*.8/4;
+   REGION_HEIGHT=ofGetHeight();
+   
+    REGION_WIDTH=ofGetWidth()-TEXT_SIZE*2.5;
+    TEXT_POS=ofGetWidth()-TEXT_SIZE*1.25;
     
 }
 
@@ -483,7 +517,7 @@ void ofApp::newResponse(ofxHttpResponse & response){
         pendingChar();
     }
     
-    ofLog()<<s;
+//    ofLog()<<s;
    
    
 }
@@ -493,7 +527,7 @@ void ofApp::pendingChar(){
     _timer_char.restart();
     
     _processing=false;
-    
+    ofLog()<<">>> pending t="<<t;
 }
 
 void ofApp::sendTrajectory(int seg_){
@@ -510,7 +544,7 @@ void ofApp::sendTrajectory(int seg_){
     ofxJSONElement req_;
     int i=0;
     auto verts= _trajectory.back().getVertices();
-    
+    int stroke_=0;
     
 //    int seg=floor(ofRandom(3,30));
     int c=floor(verts.size()/seg_);
@@ -538,6 +572,9 @@ void ofApp::sendTrajectory(int seg_){
             i=0;
             offset_=ofVec2f(ofRandom(-df,df)*REGION_WIDTH,ofRandom(-df,df)*REGION_HEIGHT);
             _tmp_trace.push_back(list<ofVec2f>());
+             
+            stroke_++;
+            if(stroke_>MAX_STROKE_FOR_CHAR) break;
         }
       
     }
@@ -646,7 +683,7 @@ void ofApp::startNewChar(){
     _timer_transition.reset();
     
     _trajectory.push_back(ofPolyline());
-    _pos*=0;
+    _pos*=0;//ofVec2f(ofRandom(-1,1)*REGION_WIDTH/4,ofRandom(-1,1)*REGION_HEIGHT/4);
     _vel*=0;
     _acc*=0;
     
@@ -684,8 +721,19 @@ void ofApp::endGame(){
     
     ofLog()<<"------ End of Game ------ ";
 //    _playing=false;
+    string str_;
     
+    cout<<"-----------------------------\n";
+    for(auto& t:_text){
+        cout<<t;
+        str_+=t;
+    }
+    cout<<endl;
+    cout<<"-----------------------------\n";
     _state=END;
+    
+    
+    uploadFourWords(str_);
     
     // TODO: print!
     //_timer_print.restart();
@@ -729,9 +777,9 @@ bool ofApp::isLegalChar(string str){
 //    if(x>="e40000") return true;
 //    return false;
     
-    ofLog()<<"length of "<<str<<" = "<<str.length();
+//    ofLog()<<"length of "<<str<<" = "<<str.length();
     if(str.length()>3){
-        ofLog()<<"more than one word: "<<str;
+//        ofLog()<<"more than one word: "<<str;
         return false;
     }
     unsigned char utf[4]={0};
@@ -748,7 +796,7 @@ bool ofApp::isLegalChar(string str){
             i++;
             unicode[0] = ((utf[0] & 0x0F) << 4) | ((utf[1] & 0x3C) >>2);
             unicode[1] = ((utf[1] & 0x03) << 6) | (utf[2] & 0x3F);
-            ofLog()<<str<<" "<<ofToHex(unicode[0])<<" "<<ofToHex(unicode[1]);
+//            ofLog()<<str<<" "<<ofToHex(unicode[0])<<" "<<ofToHex(unicode[1]);
             if(unicode[0] >= 0x4e && unicode[0] <= 0x9f){
                 if(unicode[0] == 0x9f && unicode[1] >0xa5) res = false;
                 else{
@@ -811,4 +859,148 @@ void ofApp::sendToPrinter(string file_){
     string cmd="lp "+ofToDataPath(file_,true);
     ofLog()<<cmd;
     ofSystem(cmd);
+}
+
+void ofApp::uploadFourWords(string str_){
+    
+    ofxHttpForm form;
+    form.action="https://script.google.com/macros/s/AKfycbzntjAxGYauKnLSqMOLNiFA6jd6owhsTwgeZ-g5es3l-BSxhTy7/exec";
+    form.method=OFX_HTTP_GET;
+    //form.addHeaderField("content-type","application/json");
+    
+//    ofxJSONElement param_;
+//    param_["text"]=str_;
+//
+//    form.data=param_.getRawString();
+    std::ostringstream out;
+    for (auto c: str_) {
+        out << '%' << std::hex << std::uppercase << (int)(unsigned char)c;
+    }
+    
+    string url_="https://script.google.com/macros/s/AKfycbzntjAxGYauKnLSqMOLNiFA6jd6owhsTwgeZ-g5es3l-BSxhTy7/exec";
+    _http_utils.addUrl(url_+"?text="+out.str());
+    
+//    auto resp=ofLoadURL(url_+"?text="+out.str());
+//    ofLog()<<resp.data;
+}
+
+string ofApp::encodeURL(string str){
+   string new_str = "";
+   char c;
+   int ic;
+   const char* chars = str.c_str();
+   char bufHex[10];
+   int len = strlen(chars);
+
+   for(int i=0;i<len;i++){
+       c = chars[i];
+       ic = c;
+       // uncomment this if you want to encode spaces with +
+       /*if (c==' ') new_str += '+';
+       else */if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') new_str += c;
+       else {
+           sprintf(bufHex,"%X",c);
+           if(ic < 16)
+               new_str += "%0";
+           else
+               new_str += "%";
+           new_str += bufHex;
+       }
+   }
+   return new_str;
+}
+
+bool ofApp::getSelectedChar(){
+    
+    _waiting_word.clear();
+    
+    if(ofRandom(3)<1){
+        ofLog()<<"!!! cant get a word !!!";
+        pendingChar();
+        return false;
+    }
+    
+     auto verts= _trajectory.back().getVertices();
+     int stroke_=0;
+    
+    // calculate total distance
+    auto p1=verts[0];
+    ofVec3f p2;
+    float dist_=0;
+    
+    for(int i=1;i<verts.size();++i){
+        
+        p2=verts[i];
+        dist_+=p1.distance(p2);
+        
+        p1=p2;
+    }
+    dist_/=REGION_WIDTH;
+    ofLog()<<dist_;
+    
+    int idx_char=ofMap(dist_,0,SELECTED_DISTANCE_MAPPING,0,SELECTED_CHAR_COUNT-1,true);
+    
+    string c_=_selected_char[idx_char];
+    bool repeat_=false;
+    do{
+        idx_char=floor(idx_char+ofRandom(-2,2));
+        c_=_selected_char[(int)ofClamp(idx_char,0,SELECTED_CHAR_COUNT-1)];
+        ofLog()<<c_;
+        
+        repeat_=false;
+        for(auto& ss:_text){
+            
+           if(ss.compare(c_)==0){
+               repeat_=true;
+           }
+        }
+        
+        
+    }while(repeat_);
+    
+    _waiting_word.push_back(c_);
+    _new_word=true;
+              
+    return true;
+}
+
+list<list<ofVec3f>> ofApp::getSimplifiedTraceSegments(list<ofVec3f> trajectory_){
+        
+    int simple_seg=8;
+    int i=0;
+    vector<ofVec3f> pt_;
+    for(auto p:trajectory_){
+        if(i%simple_seg==0) pt_.push_back(p);
+        i++;
+    }
+    
+    float angle_thres=PI/4;
+    vector<ofVec3f> turning_pt_;
+    for(i=0;i<pt_.size()-2;++i){
+        
+        // check angle
+        ofVec3f dir1(pt_[i+1].x-pt_[i].x,pt_[i+1].y-pt_[i].y);
+        ofVec3f dir2(pt_[i+1].x-pt_[i+2].x,pt_[i+2].y-pt_[i].y);
+        
+        float ang_=dir2.angle(dir1);
+        if(abs(ang_)>angle_thres){
+            turning_pt_.push_back(pt_[i+1]);
+        }
+        
+    }
+    float df=.2;
+    list<list<ofVec3f>> output_;
+    ofVec2f offset_(ofRandom(-df,df)*REGION_WIDTH,ofRandom(-df,df)*REGION_HEIGHT);
+    
+    for(i=0;i<output_.size()-1;++i){
+        list<ofVec3f> tmp_;
+        tmp_.push_back(turning_pt_[i]+offset_);
+        tmp_.push_back(turning_pt_[i+1]+offset_);
+        
+        offset_=ofVec2f(ofRandom(-df,df)*REGION_WIDTH,ofRandom(-df,df)*REGION_HEIGHT);
+        
+        output_.push_back(tmp_);
+    }
+    return output_;
+    
 }
